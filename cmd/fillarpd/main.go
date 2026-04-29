@@ -1,4 +1,4 @@
-package fillarpd
+package main
 
 import (
 	"context"
@@ -17,6 +17,7 @@ func main() {
 	interfaceName := "ibs1"
 	sourceIP := "10.2.0.1"
 	_, network, _ := net.ParseCIDR("10.2.0.0/24")
+	sweepInterval := 60
 
 	proxyInterface, err := net.InterfaceByName(interfaceName)
 	if err != nil {
@@ -27,7 +28,7 @@ func main() {
 		SourceIP: net.ParseIP(sourceIP), Routes: make(map[netip.Addr]bool)}
 
 	// Init scanner
-	scanner := &fillarpd.IBArpScanner{Interface: proxyInterface}
+	scanner := &fillarpd.IBArpSnooper{Interface: proxyInterface}
 
 	// Init Sweeper
 	sweeper := &fillarpd.IBSweeper{
@@ -49,7 +50,12 @@ func main() {
 	}
 
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("PANIC in sweep goroutine: %v", r)
+			}
+		}()
+		ticker := time.NewTicker(time.Duration(sweepInterval) * time.Second)
 		defer ticker.Stop()
 		// run a sweep at start to populate the route table
 		log.Println("Initial sweep starting...")
@@ -73,9 +79,13 @@ func main() {
 				// Technically this isn't needed but just incase something was missed
 
 				for _, ip := range ips {
-					packetChan <- ip
+					if err := router.AddRoute(ip); err != nil {
+						log.Printf("Could not add routes? %s\n", err.Error())
+					}
 				}
-				router.PurgeUnused(ips)
+				if err := router.PurgeUnused(ips); err != nil {
+					log.Fatalf("Could not purge routes? %s\n", err.Error())
+				}
 			}
 		}
 	}()
@@ -86,10 +96,16 @@ func main() {
 		select {
 		case <-ctx.Done():
 			log.Println("Shutting down gracefully (waiting up to 1s)...")
+			log.Println("Removing all ARP discovered routes")
+			router.PurgeAll()
 			return
 		case ip := <-packetChan:
-			log.Printf("Detected IP: %s. Updating routes...", ip)
-			router.AddRoute(ip)
+			if !router.Routes[ip] {
+				log.Printf("Detected IP: %s. Updating routes...", ip)
+			}
+			if err := router.AddRoute(ip); err != nil {
+				log.Printf("Could not add routes? %s\n", err.Error())
+			}
 		}
 	}
 }

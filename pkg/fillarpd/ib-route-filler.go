@@ -2,6 +2,7 @@ package fillarpd
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/netip"
 	"sync"
@@ -31,7 +32,7 @@ func (router *IBRouteFiller) AddRoute(addr netip.Addr) error {
 	route := &netlink.Route{
 		LinkIndex: router.Interface.Index,
 		Dst: &net.IPNet{
-			IP:   net.IP(addr.AsSlice()),
+			IP:   net.IP(addr.Unmap().AsSlice()),
 			Mask: net.CIDRMask(32, 32),
 		},
 		Scope: netlink.SCOPE_LINK, // Link, maybe host might work?
@@ -50,13 +51,19 @@ func (router *IBRouteFiller) RemoveRoute(addr netip.Addr) error {
 	// thread safety
 	router.mu.Lock()
 	defer router.mu.Unlock()
+	sourceIP, _ := netip.AddrFromSlice(router.SourceIP)
+	if addr == sourceIP {
+		return nil
+	}
 
 	route := &netlink.Route{
 		LinkIndex: router.Interface.Index,
 		Dst: &net.IPNet{
-			IP:   net.IP(addr.AsSlice()),
+			IP:   net.IP(addr.Unmap().AsSlice()),
 			Mask: net.CIDRMask(32, 32),
 		},
+		Scope: netlink.SCOPE_LINK,
+		Src:   router.SourceIP,
 	}
 
 	if err := netlink.RouteDel(route); err != nil {
@@ -76,10 +83,20 @@ func (router *IBRouteFiller) PurgeUnused(knownIPs []netip.Addr) error {
 
 	for activeIP := range router.Routes {
 		if !knownMap[activeIP] {
+			log.Printf("Purging %s\n", activeIP)
 			if err := router.RemoveRoute(activeIP); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func (router *IBRouteFiller) PurgeAll() {
+	for ip := range router.Routes {
+		if err := router.RemoveRoute(ip); err != nil {
+			log.Printf("Failed to remove route for %s: %v", ip, err)
+		}
+		delete(router.Routes, ip)
+	}
 }
