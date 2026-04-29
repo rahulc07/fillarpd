@@ -3,6 +3,7 @@ package fillarpd
 import (
 	"bytes"
 	"context"
+	"log"
 	"net"
 	"net/netip"
 	"time"
@@ -54,6 +55,7 @@ func (scanner *IBArpSnooper) Scan(ctx context.Context) (chan netip.Addr, error) 
 				arp := arpLayer.(*layers.ARP)
 				if arp.Operation == layers.ARPReply &&
 					bytes.Equal(arp.SourceHwAddress, scanner.Interface.HardwareAddr) {
+					log.Printf("Detected Proxy Arp reply skipping")
 					// despite what the documentation comments say at some point Go Net was updated
 					// to support arbitrarty length hw addresses (like IB)
 					continue
