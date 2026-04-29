@@ -76,7 +76,7 @@ func (sweeper *IBSweeper) FindIPs(ctx context.Context) ([]netip.Addr, error) {
 	// filter the knownhosts down to only the one's reachable and in range.
 	var reachableHosts []netip.Addr
 	for _, neighbor := range knownHosts {
-		if (neighbor.State & (netlink.NUD_REACHABLE)) != 0 {
+		if (neighbor.State & (netlink.NUD_REACHABLE | netlink.NUD_DELAY)) != 0 {
 			log.Printf("%s is REACHABLE", neighbor.IP.String())
 			ip, ok := netip.AddrFromSlice(neighbor.IP)
 			if !ok {

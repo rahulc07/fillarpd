@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/supercompucsd/fillarpd/pkg/fillarpd"
 )
@@ -15,7 +16,7 @@ import (
 func main() {
 	interfaceName := "ibs1"
 	sourceIP := "10.2.0.1"
-	//scanIP := "10.2.0.1/24"
+	_, network, _ := net.ParseCIDR("10.2.0.0/24")
 
 	proxyInterface, err := net.InterfaceByName(interfaceName)
 	if err != nil {
@@ -29,6 +30,11 @@ func main() {
 	scanner := &fillarpd.IBArpScanner{Interface: proxyInterface}
 
 	// Init Sweeper
+	sweeper := &fillarpd.IBSweeper{
+		Interface: proxyInterface,
+		IPRange:   network,
+		Threads:   24,
+	}
 
 	/////
 	ctx, cancel := signal.NotifyContext(
@@ -41,6 +47,38 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		// run a sweep at start to populate the route table
+		log.Println("Initial sweep starting...")
+		if ips, err := sweeper.FindIPs(ctx); err == nil {
+			for _, ip := range ips {
+				packetChan <- ip
+			}
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				log.Println("Sweeping...")
+				ips, err := sweeper.FindIPs(ctx)
+				if err != nil {
+					log.Printf("Sweep error: %v", err)
+					continue
+				}
+				// Technically this isn't needed but just incase something was missed
+
+				for _, ip := range ips {
+					packetChan <- ip
+				}
+				router.PurgeUnused(ips)
+			}
+		}
+	}()
 
 	log.Println("Daemon started. Waiting for ARP traffic...")
 

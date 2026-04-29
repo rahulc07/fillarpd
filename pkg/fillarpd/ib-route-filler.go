@@ -66,8 +66,9 @@ func (router *IBRouteFiller) RemoveRoute(addr netip.Addr) error {
 	return nil
 }
 
-func (router *IBRouteFiller) Resync(knownIPs []netip.Addr) error {
-
+func (router *IBRouteFiller) PurgeUnused(knownIPs []netip.Addr) error {
+	// this doesn't have to add as the sweep itself triggers a ton of arp
+	// requests
 	knownMap := make(map[netip.Addr]bool)
 	for _, ip := range knownIPs {
 		knownMap[ip] = true

@@ -15,7 +15,7 @@ type IBArpScanner struct {
 	Interface *net.Interface
 }
 
-func (scanner *IBArpScanner) Scan(ctx context.Context) (<-chan netip.Addr, error) {
+func (scanner *IBArpScanner) Scan(ctx context.Context) (chan netip.Addr, error) {
 	// snoop (promiscious mode)
 	// block forever should be fine here
 	handle, err := pcap.OpenLive(scanner.Interface.Name, 65536, true, time.Second)
