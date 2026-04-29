@@ -1,104 +1,64 @@
 package fillarpd
 
 import (
-	"bufio"
 	"context"
+	"fmt"
+	"log"
 	"net"
 	"net/netip"
-	"os"
-	"strings"
-	"sync"
+	"syscall"
 	"time"
+
+	"github.com/vishvananda/netlink"
 )
 
 type IBSweeper struct {
-	Threads int
+	Interface *net.Interface
+	IPRange   *net.IPNet
+	Threads   int
 }
 
-func (sweeper *IBSweeper) FindIPs(ctx context.Context, prefix netip.Prefix) ([]netip.Addr, error) {
-	var found []netip.Addr
-	var mu sync.Mutex
-
-	ips := make(chan netip.Addr)
-	var wg sync.WaitGroup
-
-	for i := 0; i < sweeper.Threads; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for addr := range ips {
-				if sweeper.probe(ctx, addr) {
-					mu.Lock()
-					found = append(found, addr)
-					mu.Unlock()
-				}
-			}
-		}()
+func (sweeper *IBSweeper) FindIPs(ctx context.Context) ([]netip.Addr, error) {
+	addr, ok := netip.AddrFromSlice(sweeper.IPRange.IP)
+	if !ok {
+		return nil, fmt.Errorf("invalid base IP")
 	}
+	// maybe make this multi-threaded
 
-	go func() {
-	loop:
-		for addr := prefix.Addr(); prefix.Contains(addr); addr = addr.Next() {
-			if addr.IsUnspecified() || addr.As4()[3] == 0 || addr.As4()[3] == 255 {
-				continue
-			}
-
-			select {
-			case <-ctx.Done():
-				break loop
-			case ips <- addr:
-			}
+	// Force bind a dialer on this interface to ignore routes
+	d := net.Dialer{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return c.Control(func(fd uintptr) {
+				syscall.SetsockoptString(int(fd), syscall.SOL_SOCKET, syscall.SO_BINDTODEVICE, sweeper.Interface.Name)
+			})
+		},
+	}
+	// just fire something off to update the arptables,
+	for ; sweeper.IPRange.Contains(addr.AsSlice()); addr = addr.Next() {
+		conn, err := d.Dial("udp", fmt.Sprintf("%s:9", addr.String()))
+		if err == nil {
+			conn.Write([]byte{0})
+			conn.Close()
+			conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 		}
-		close(ips)
-	}()
-
-	wg.Wait()
-	return found, nil
-}
-func (sweeper *IBSweeper) probe(ctx context.Context, addr netip.Addr) bool {
-	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{IP: addr.AsSlice(), Port: 7})
+	}
+	// we completely ignore the result of the last one because it did what we wanted which is to update the route table
+	time.Sleep(10 * time.Second)
+	knownHosts, err := netlink.NeighList(sweeper.Interface.Index, netlink.FAMILY_V4)
 	if err != nil {
-		return false
+		return nil, fmt.Errorf("could not retrieve route table %w", err)
 	}
-	defer conn.Close()
-
-	conn.SetDeadline(time.Now().Add(500 * time.Millisecond))
-	if _, err = conn.Write([]byte{0}); err != nil {
-		return false
+	// filter the knownhosts down to only the one's reachable and in range.
+	var reachableHosts []netip.Addr
+	for _, neighbor := range knownHosts {
+		if (neighbor.State & (netlink.NUD_REACHABLE)) != 0 {
+			log.Printf("%s is REACHABLE", neighbor.IP.String())
+			ip, ok := netip.AddrFromSlice(neighbor.IP)
+			if !ok {
+				return nil, fmt.Errorf("route table ip invalid %w", err)
+			}
+			reachableHosts = append(reachableHosts, ip)
+		}
 	}
-
-	deadline := time.Now().Add(500 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-time.After(50 * time.Millisecond):
-		}
-
-		f, err := os.Open("/proc/net/arp")
-		if err != nil {
-			return false
-		}
-
-		scanner := bufio.NewScanner(f)
-		scanner.Scan() // skip header
-		for scanner.Scan() {
-			fields := strings.Fields(scanner.Text())
-			if len(fields) < 3 {
-				continue
-			}
-			ip, err := netip.ParseAddr(fields[0])
-			if err != nil || ip != addr {
-				continue
-			}
-			const COMPLETE_ARP = "0x2"
-			const COMPLETE_PUBLISHED_ARP = "0x6"
-			if fields[2] == COMPLETE_ARP || fields[2] == COMPLETE_PUBLISHED_ARP {
-				f.Close()
-				return true
-			}
-		}
-		f.Close()
-	}
-	return false
+	return reachableHosts, nil
 }
