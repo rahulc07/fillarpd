@@ -24,6 +24,16 @@ fillarpd can be run in 3 main ways
 - systemd - Configuration enviornment variables in /etc/default/fillarpd
 - docker-compose - Configuration passed as enviornment variables
 
+### Arguments
+These can be passed in via environment variables or cli flags
+```
+--interface/INTERFACE The interface you want to listen for ARP on  
+--sourceip/SOURCE_IP The source ip for the route (in case you have multiple IPs per interface or weird network setup)  (e.g 192.168.1.1)
+--network/NETWORK The subnet (e.g 192.168.1.1/24) for sweeps and constraint checking
+--sweepinterval/SWEEP_INTERVAL
+--threads/THREADS The number of threads for sweeping.
+```
+
 # Deploying
 
 ### System Packages/systemd
@@ -45,3 +55,4 @@ systemctl daemon-reload && systemctl restart fillarpd
 
 ### Docker
 You can also deploy with docker, edit docker-compose.yml and run docker compsoe up -d
+
