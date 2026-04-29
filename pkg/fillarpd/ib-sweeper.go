@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/netip"
+	"sync"
 	"syscall"
 	"time"
 
@@ -23,7 +24,6 @@ func (sweeper *IBSweeper) FindIPs(ctx context.Context) ([]netip.Addr, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid base IP")
 	}
-	// maybe make this multi-threaded
 
 	// Force bind a dialer on this interface to ignore routes
 	d := net.Dialer{
@@ -33,17 +33,42 @@ func (sweeper *IBSweeper) FindIPs(ctx context.Context) ([]netip.Addr, error) {
 			})
 		},
 	}
-	// just fire something off to update the arptables,
-	for ; sweeper.IPRange.Contains(addr.AsSlice()); addr = addr.Next() {
-		conn, err := d.Dial("udp", fmt.Sprintf("%s:9", addr.String()))
-		if err == nil {
-			conn.Write([]byte{0})
-			conn.Close()
-			conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-		}
+
+	jobs := make(chan netip.Addr)
+	var wg sync.WaitGroup
+	// Setup the jobs
+	for w := 0; w < sweeper.Threads; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// just fire something off to update the arptables,
+			for targetIP := range jobs {
+				conn, err := d.Dial("udp", net.JoinHostPort(targetIP.String(), "9"))
+				if err == nil {
+					conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+					conn.Write([]byte{0})
+					conn.Close()
+				}
+			}
+		}()
 	}
+	// Send the ips
+	go func() {
+		for ; sweeper.IPRange.Contains(addr.AsSlice()); addr = addr.Next() {
+			jobs <- addr
+		}
+		close(jobs)
+	}()
+
+	wg.Wait()
 	// we completely ignore the result of the last one because it did what we wanted which is to update the route table
-	time.Sleep(10 * time.Second)
+
+	select {
+	case <-time.After(3 * time.Second):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	knownHosts, err := netlink.NeighList(sweeper.Interface.Index, netlink.FAMILY_V4)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve route table %w", err)
