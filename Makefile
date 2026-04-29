@@ -6,6 +6,7 @@ CONFIG_DIR=/etc/default
 CONFIG_FILE=$(CONFIG_DIR)/$(BINARY_NAME)
 SERVICE_FILE=$(BINARY_NAME).service
 GO_FLAGS=-ldflags="-s -w"
+export CGO_ENABLED=1
 
 .PHONY: all build install uninstall clean
 
