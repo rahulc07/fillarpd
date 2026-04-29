@@ -30,7 +30,7 @@ These can be passed in via environment variables or cli flags
 --interface/INTERFACE The interface you want to listen for ARP on  
 --sourceip/SOURCE_IP The source ip for the route (in case you have multiple IPs per interface or weird network setup)  (e.g 192.168.1.1)
 --network/NETWORK The subnet (e.g 192.168.1.1/24) for sweeps and constraint checking
---sweepinterval/SWEEP_INTERVAL
+--sweepinterval/SWEEP_INTERVAL The sweep gap in seconds, recommended to be around 60
 --threads/THREADS The number of threads for sweeping.
 ```
 
