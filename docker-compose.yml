@@ -1,0 +1,19 @@
+services:
+  fillarpd:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: fillarpd:latest # This is setting the local build name
+    container_name: fillarpd
+    restart: always
+    # required for the container to function peroprly
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - INTERFACE=eth0
+      - SOURCE_IP=192.168.1.1
+      - NETWORK=192.168.1.1/24
+      - SWEEP_INTERVAL=60
+      - THREADS=24

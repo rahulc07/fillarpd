@@ -10,22 +10,35 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alexflint/go-arg"
 	"github.com/supercompucsd/fillarpd/pkg/fillarpd"
 )
 
-func main() {
-	interfaceName := "ibs1"
-	sourceIP := "10.2.0.1"
-	_, network, _ := net.ParseCIDR("10.2.0.0/24")
-	sweepInterval := 60
+type config struct {
+	// Using 'required' ensures the app won't run without these
+	Interface     string `arg:"-i,env:INTERFACE,required" help:"Network interface name (e.g., ibs1)"`
+	SourceIP      string `arg:"-s,env:SOURCE_IP,required" help:"Source IP for route injection (e.g., 10.2.0.1)"`
+	Network       string `arg:"-n,env:NETWORK,required"   help:"CIDR range to sweep (e.g., 10.2.0.0/24)"`
+	SweepInterval int    `arg:"-t,env:SWEEP_INTERVAL,required" help:"Seconds between sweeps"`
+	Threads       int    `arg:"-j,env:THREADS" default:"24" help:"Number of parallel sweep threads"`
+}
 
-	proxyInterface, err := net.InterfaceByName(interfaceName)
+func main() {
+	var cfg config
+	arg.MustParse(&cfg)
+
+	_, network, err := net.ParseCIDR(cfg.Network)
 	if err != nil {
-		log.Fatalf("interface %s is not compatible/not found %s", interfaceName, err.Error())
+		log.Fatalf("Invalid Network Range %s, %v", cfg.Network, err)
+	}
+
+	proxyInterface, err := net.InterfaceByName(cfg.Interface)
+	if err != nil {
+		log.Fatalf("interface %s is not compatible/not found %s", cfg.Interface, err.Error())
 	}
 	// Init router
 	router := &fillarpd.IBRouteFiller{Interface: proxyInterface,
-		SourceIP: net.ParseIP(sourceIP), Routes: make(map[netip.Addr]bool)}
+		SourceIP: net.ParseIP(cfg.SourceIP), Routes: make(map[netip.Addr]bool)}
 
 	// Init scanner
 	scanner := &fillarpd.IBArpSnooper{Interface: proxyInterface}
@@ -55,7 +68,7 @@ func main() {
 				log.Printf("PANIC in sweep goroutine: %v", r)
 			}
 		}()
-		ticker := time.NewTicker(time.Duration(sweepInterval) * time.Second)
+		ticker := time.NewTicker(time.Duration(cfg.SweepInterval) * time.Second)
 		defer ticker.Stop()
 		// run a sweep at start to populate the route table
 		log.Println("Initial sweep starting...")
