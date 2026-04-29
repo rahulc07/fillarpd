@@ -1,6 +1,7 @@
 package fillarpd
 
 import (
+	"bytes"
 	"context"
 	"net"
 	"net/netip"
@@ -41,7 +42,7 @@ func (scanner *IBArpSnooper) Scan(ctx context.Context) (chan netip.Addr, error) 
 				return
 			case packet := <-source.Packets():
 				if packet == nil {
-					// this packet is useless
+					// we've stopped getting packets
 					return
 				}
 
@@ -51,7 +52,12 @@ func (scanner *IBArpSnooper) Scan(ctx context.Context) (chan netip.Addr, error) 
 				}
 
 				arp := arpLayer.(*layers.ARP)
-
+				if arp.Operation == layers.ARPReply &&
+					bytes.Equal(arp.SourceHwAddress, scanner.Interface.HardwareAddr) {
+					// despite what the documentation comments say at some point Go Net was updated
+					// to support arbitrarty length hw addresses (like IB)
+					continue
+				}
 				if ip, ok := netip.AddrFromSlice(arp.SourceProtAddress); ok {
 					out <- ip.Unmap()
 				}
