@@ -1,7 +1,7 @@
 # builder
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache make git
+RUN apk add --no-cache make git libpcap-dev libbpf-dev
 
 COPY go.mod go.sum ./
 RUN go mod download
