@@ -22,8 +22,12 @@ func main() {
 		syscall.SIGTERM,
 	)
 	fmt.Printf("Finding Ips\n")
-	_, err = sweeper.FindIPs(ctx)
+	ips, err := sweeper.FindIPs(ctx)
+
 	if err != nil {
 		log.Fatalf("error %s", err.Error())
+	}
+	for _, ip := range ips {
+		fmt.Printf("%s\n", ip.String())
 	}
 }
