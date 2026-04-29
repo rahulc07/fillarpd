@@ -37,9 +37,10 @@ These can be passed in via environment variables or cli flags
 # Deploying
 
 ### System Packages/systemd
+**Dependencies**: libbpf & libpcap shared libraries
 This project uses a Makefile to install a systemd service and build fillarpd automatically.
 The Makefile has the usual options for Makefile only builds (prefix, systemddir, destdir, etc) and it is recommended to look at the top of the Makefile for more info
-at the top of the make
+at the top of the make. 
 ```
 git clone https://github.com/rahulc07/fillarpd.git
 cd fillarpd
