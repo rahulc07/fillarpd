@@ -10,7 +10,7 @@ RUN make
 
 # runner
 FROM alpine:latest
-RUN apk add --no-cache ca-certificates iproute2 libpcab libbpf
+RUN apk add --no-cache ca-certificates iproute2 libpcap libbpf
 WORKDIR /root/
 COPY --from=builder /app/fillarpd .
 ENTRYPOINT ["./fillarpd"]
