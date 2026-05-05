@@ -69,7 +69,7 @@ If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it 
 ```
 "interfaces-config": {
      ...
-    "service-sockets-require-all": true 
+    "service-sockets-require-all": true,
     "interfaces": [ "eth0/10.2.0.1", "ibs1/192.168.4.1" ],
     ...
 },
