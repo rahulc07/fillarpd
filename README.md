@@ -65,9 +65,14 @@ https://github.com/rahulc07/stork-and-kea/
 This Docker based DHCP + Manager has been patched for IB support. You can use this and assign the IPoIB interface a second IP on the same subnet as the Ethernet interface and use 1 pool (add both to the main listening interfaces) as long as it is on the subnet it will use the same pool as the ethernet one (even if it's not in the POOL interface listeners). 
 
 
-If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it the same IP as the ethernet interface as a /32. Then put something like
+If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it the same IP as the ethernet interface as a /32. Then put something like, this tells Kea what interfaces should bind what IP.
 ```
-"interfaces": [ "eth0/10.2.0.1", "ibs1/192.168.4.1" ],
+"interfaces-config": {
+     ...
+    "service-sockets-require-all": true 
+    "interfaces": [ "eth0/10.2.0.1", "ibs1/192.168.4.1" ],
+    ...
+},
 ```
 in kea-config/kea-dhcp4.conf
 
@@ -79,7 +84,7 @@ Then tell Kea to force listen on ibs1
         ...
 ]
 ```
-> The rationale for this is that Kea will automatically listen on interfaces in the subnet you are trying to dhcp for. The interface option causes it to force listen on the Infiniband interface that has a dummy IP. Again this is not needed if you use a second interface with a second IP, just listen on the ethernet interface with no dummy ip. 
+> The rationale for this is that Kea will automatically listen on interfaces in the subnet you are trying to dhcp for. The interface option causes it to force listen on the Infiniband interface that has a dummy IP. If you don't do this the Kernel won't know what 10.2.0.1 to actually bind. Again this is not needed if you use a second interface with a second IP, just listen on the ethernet interface with no dummy ip. 
 
 In the interfaces config where 192.168.4.1 is the dummy address and 10.2.0.1 is the real address.
 Running ip a show dev ibs1 should return something like
