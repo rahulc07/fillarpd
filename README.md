@@ -69,6 +69,18 @@ If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it 
 ```
 "interfaces": [ "eth0/10.2.0.1", "ibs1/192.168.4.1" ],
 ```
+in kea-config/kea-dhcp4.conf
+
+Then tell Kea to force listen on ibs1
+```json
+"subnet4": [
+        ...
+        "interface": "ibs1",
+        ...
+]
+```
+> The rationale for this is that Kea will automatically listen on interfaces in the subnet you are trying to dhcp for. The interface option causes it to force listen on the Infiniband interface that has a dummy IP. Again this is not needed if you use a second interface with a second IP, just listen on the ethernet interface with no dummy ip. 
+
 In the interfaces config where 192.168.4.1 is the dummy address and 10.2.0.1 is the real address.
 Running ip a show dev ibs1 should return something like
 ```
