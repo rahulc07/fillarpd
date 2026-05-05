@@ -57,3 +57,28 @@ systemctl daemon-reload && systemctl restart fillarpd
 ### Docker
 You can also deploy with docker, edit docker-compose.yml and run docker compsoe up -d
 
+# DHCP
+Most modern DHCP servers do not support IPoIB without a relay or some sort of relay.
+
+https://github.com/rahulc07/stork-and-kea/
+
+This Docker based DHCP + Manager has been patched for IB support. You can use this and assign the IPoIB interface a second IP on the same subnet as the Ethernet interface and use 1 pool (add both to the main listening interfaces) as long as it is on the subnet it will use the same pool as the ethernet one (even if it's not in the POOL interface listeners). 
+
+
+If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it the same IP as the ethernet interface as a /32. Then put something like
+```
+"interfaces": [ "eth0/10.2.0.1", "ibs1/192.168.4.1" ],
+```
+In the interfaces config where 192.168.4.1 is the dummy address and 10.2.0.1 is the real address.
+Running ip a show dev ibs1 should return something like
+```
+5: ibs1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 2044 qdisc mq state UP group default qlen 256
+    link/infiniband
+    altname ibp4s0
+    inet 10.2.0.1/32 scope global noprefixroute ibs1
+       valid_lft forever preferred_lft forever
+    inet 192.168.4.1/32 scope global noprefixroute ibs1
+       valid_lft forever preferred_lft forever
+```
+As long as you use /32s for both it should not conflict with routes. However keep in mind with fillarpd in general you lose the ability to ARP for the IB devices on your subnet, meaning you are relying on the routing table that fillarpd creates. What this means is that the bridge server won't see new IP updates until the node reaches out with it's IP because of some other ARP request or until the sweep (whichever comes first). For 99% of scenarios this is fine  
+
