@@ -58,7 +58,7 @@ systemctl daemon-reload && systemctl restart fillarpd
 You can also deploy with docker, edit docker-compose.yml and run docker compsoe up -d
 
 # DHCP
-Most modern DHCP servers do not support IPoIB without a relay or some sort of relay.
+Most modern DHCP servers do not support IPoIB without a relay or some sort of patch.
 
 https://github.com/rahulc07/stork-and-kea/
 
