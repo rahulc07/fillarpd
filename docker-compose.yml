@@ -11,9 +11,3 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    environment:
-      - INTERFACE=eth0
-      - SOURCE_IP=192.168.1.1
-      - NETWORK=192.168.1.1/24
-      - SWEEP_INTERVAL=60
-      - THREADS=24

@@ -22,7 +22,7 @@ conflicting. Network usage/CPU usage during sweeps is almost 0.
 fillarpd can be run in 3 main ways
 - cli - Arguments passed on the command line
 - systemd - Configuration enviornment variables in /etc/default/fillarpd
-- docker-compose - Configuration passed as enviornment variables
+- docker-compose - Configuration passed as enviornment variables, copy dotenv-template to .env
 
 ### Arguments
 These can be passed in via environment variables or cli flags
