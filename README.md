@@ -41,7 +41,7 @@ These can be passed in via environment variables or cli flags
 This project uses a Makefile to install a systemd service and build fillarpd automatically.
 The Makefile has the usual options for Makefile only builds (prefix, systemddir, destdir, etc) and it is recommended to look at the top of the Makefile for more info
 at the top of the make. 
-```
+```bash
 git clone https://github.com/rahulc07/fillarpd.git
 cd fillarpd
 # Grab the release version
@@ -66,7 +66,7 @@ This Docker based DHCP + Manager has been patched for IB support. You can use th
 
 
 If you can only use 1 ip assign a dummy IP to the IPoIB interface and assign it the same IP as the ethernet interface as a /32. Then put something like, this tells Kea what interfaces should bind what IP.
-```
+```json
 "interfaces-config": {
      ...
     "service-sockets-require-all": true,
@@ -83,6 +83,26 @@ Then tell Kea to force listen on ibs1
         "interface": "ibs1",
         ...
 ]
+```
+
+Finally, send option 54 to ensure that dhcp unicast requests go through
+```json
+...
+        "pools": [
+          {
+            "option-data": [
+              {
+                "always-send": false,
+                "code": 54,
+                "csv-format": true,
+                "data": "10.2.0.1",
+                "name": "dhcp-server-identifier",
+                "never-send": false,
+                "space": "dhcp4"
+              }
+            ],
+...
+// This option can be configured in stork
 ```
 > The rationale for this is that Kea will automatically listen on interfaces in the subnet you are trying to dhcp for. The interface option causes it to force listen on the Infiniband interface that has a dummy IP. If you don't do this the Kernel won't know what 10.2.0.1 to actually bind. Again this is not needed if you use a second interface with a second IP, just listen on the ethernet interface with no dummy ip. 
 
