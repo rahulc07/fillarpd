@@ -12,3 +12,9 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_ADMIN
+    enviornment:
+      INTERFACE=${INTERFACE}
+      SOURCE_IP=${SOURCE_IP}
+      NETWORK=${NETWORK}
+      SWEEP_INTERVAL=${SWEEP_INTERVAL}
+      THREADS=${THREADS}
