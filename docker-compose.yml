@@ -13,8 +13,8 @@ services:
       - NET_RAW
       - SYS_ADMIN
     environment:
-      INTERFACE=${INTERFACE}
-      SOURCE_IP=${SOURCE_IP}
-      NETWORK=${NETWORK}
-      SWEEP_INTERVAL=${SWEEP_INTERVAL}
-      THREADS=${THREADS}
+      - INTERFACE=${INTERFACE}
+      - SOURCE_IP=${SOURCE_IP}
+      - NETWORK=${NETWORK}
+      - SWEEP_INTERVAL=${SWEEP_INTERVAL}
+      - THREADS=${THREADS}
