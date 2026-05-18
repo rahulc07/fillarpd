@@ -12,7 +12,7 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_ADMIN
-    enviornment:
+    environment:
       INTERFACE=${INTERFACE}
       SOURCE_IP=${SOURCE_IP}
       NETWORK=${NETWORK}
